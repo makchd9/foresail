@@ -8,6 +8,7 @@ export type ListParams = {
   before: string | null;
   stage: string | null;
   owner: string | null;
+  type: string | null;
 };
 
 type RawParams = Record<string, string | string[] | undefined>;
@@ -32,6 +33,7 @@ export function parseListParams(
     before: first(raw.before) ?? null,
     stage: first(raw.stage) ?? null,
     owner: first(raw.owner) ?? null,
+    type: first(raw.type) ?? null,
   };
 }
 
@@ -49,6 +51,7 @@ export function listQueryString(
   if (merged.dir) search.set("dir", merged.dir);
   if (merged.stage) search.set("stage", merged.stage);
   if (merged.owner) search.set("owner", merged.owner);
+  if (merged.type) search.set("type", merged.type);
   if (cursorOverridden) {
     if (merged.after) search.set("after", merged.after);
     if (merged.before) search.set("before", merged.before);

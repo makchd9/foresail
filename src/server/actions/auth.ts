@@ -20,8 +20,7 @@ import { checkRateLimit, rateLimitMessage } from "@/server/rate-limit";
 import { generateToken, hashToken } from "@/server/tokens";
 import { ACTIVE_WORKSPACE_COOKIE, createWorkspaceForUser } from "@/server/workspace";
 
-/** Shared demo logins are protected from takeover (password/email changes, resets). */
-const PROTECTED_DEMO_EMAILS = new Set(["demo@foresail.app", "viewer@foresail.app"]);
+import { PROTECTED_DEMO_EMAILS } from "@/lib/demo";
 
 async function clientIp(): Promise<string> {
   const h = await headers();

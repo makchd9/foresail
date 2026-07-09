@@ -60,3 +60,62 @@ export async function switchWorkspaceAction(workspaceId: string): Promise<Action
   revalidatePath("/app");
   return ok(null);
 }
+
+// ---------- Workspace settings ----------
+
+export async function updateWorkspaceAction(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const { getActionContext } = await import("@/server/workspace");
+  const { workspaceSettingsSchema } = await import("@/lib/validators/settings");
+  const { DEMO_WORKSPACE_NOTICE } = await import("@/lib/demo");
+  const { logActivity } = await import("@/server/activity");
+
+  const context = await getActionContext("ADMIN");
+  if (!context.ok) return fail(context.error);
+  if (context.workspace.isDemo) return fail(DEMO_WORKSPACE_NOTICE);
+
+  const parsed = workspaceSettingsSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return invalid(parsed.error);
+
+  await db.$transaction(async (tx) => {
+    await tx.workspace.update({
+      where: { id: context.workspace.id },
+      data: { name: parsed.data.name, currency: parsed.data.currency },
+    });
+    await logActivity(
+      {
+        workspaceId: context.workspace.id,
+        actorId: context.user.id,
+        action: "workspace.updated",
+        entityType: "workspace",
+        entityId: context.workspace.id,
+        entityLabel: parsed.data.name,
+      },
+      tx,
+    );
+  });
+
+  revalidatePath("/app", "layout");
+  return ok(null);
+}
+
+export async function deleteWorkspaceAction(confirmName: string): Promise<ActionResult> {
+  const { getActionContext } = await import("@/server/workspace");
+  const { DEMO_WORKSPACE_NOTICE } = await import("@/lib/demo");
+
+  const context = await getActionContext("OWNER");
+  if (!context.ok) return fail(context.error);
+  if (context.workspace.isDemo) return fail(DEMO_WORKSPACE_NOTICE);
+  if (confirmName.trim() !== context.workspace.name) {
+    return fail("Type the workspace name exactly to confirm.");
+  }
+
+  await db.workspace.delete({ where: { id: context.workspace.id } });
+
+  const store = await cookies();
+  store.delete(ACTIVE_WORKSPACE_COOKIE);
+  revalidatePath("/app", "layout");
+  return ok(null);
+}
