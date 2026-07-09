@@ -1,6 +1,12 @@
 import "server-only";
 
 import { db } from "@/lib/db";
+import {
+  buildForecastBuckets,
+  weightedValueCents,
+  winRate,
+  type ForecastBucket,
+} from "@/lib/forecast";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -14,13 +20,7 @@ export type StageSlice = {
   weightedCents: number;
 };
 
-export type ForecastBucket = {
-  key: string;
-  label: string;
-  weightedCents: number;
-  totalCents: number;
-  count: number;
-};
+export type { ForecastBucket };
 
 export type DashboardData = {
   openCount: number;
@@ -54,14 +54,6 @@ export type DashboardData = {
     actor: { name: string } | null;
   }>;
 };
-
-function monthKey(date: Date): string {
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
-function monthLabel(date: Date): string {
-  return new Intl.DateTimeFormat("en-US", { month: "short", timeZone: "UTC" }).format(date);
-}
 
 export async function getDashboardData(workspaceId: string): Promise<DashboardData> {
   const [stages, openDeals, closedGroups, won90, closingSoonRows, recentActivity] =
@@ -148,7 +140,7 @@ export async function getDashboardData(workspaceId: string): Promise<DashboardDa
   for (const deal of openDeals) {
     const stage = stageById.get(deal.stageId);
     if (!stage) continue;
-    const weighted = Math.round((deal.valueCents * stage.probability) / 100);
+    const weighted = weightedValueCents(deal.valueCents, stage.probability);
     openTotalCents += deal.valueCents;
     weightedTotalCents += weighted;
     const slice = sliceByStage.get(deal.stageId);
@@ -168,67 +160,30 @@ export async function getDashboardData(workspaceId: string): Promise<DashboardDa
     if (stage.isWon) wonCount += group._count._all;
     if (stage.isLost) lostCount += group._count._all;
   }
-  const closedTotal = wonCount + lostCount;
 
-  // Weighted forecast bucketed by expected close month (next 6 months + past due)
-  const now = new Date();
-  const buckets: ForecastBucket[] = [];
-  const bucketIndex = new Map<string, ForecastBucket>();
-  const pastDue: ForecastBucket = { key: "past", label: "Past due", weightedCents: 0, totalCents: 0, count: 0 };
-  for (let i = 0; i < 6; i++) {
-    const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + i, 1));
-    const bucket: ForecastBucket = {
-      key: monthKey(month),
-      label: monthLabel(month),
-      weightedCents: 0,
-      totalCents: 0,
-      count: 0,
-    };
-    buckets.push(bucket);
-    bucketIndex.set(bucket.key, bucket);
-  }
-
-  let unscheduledCount = 0;
-  let unscheduledWeightedCents = 0;
-  const startOfCurrentMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-
-  for (const deal of openDeals) {
-    const stage = stageById.get(deal.stageId);
-    if (!stage) continue;
-    const weighted = Math.round((deal.valueCents * stage.probability) / 100);
-    if (!deal.expectedCloseDate) {
-      unscheduledCount += 1;
-      unscheduledWeightedCents += weighted;
-      continue;
-    }
-    if (deal.expectedCloseDate < startOfCurrentMonth) {
-      pastDue.count += 1;
-      pastDue.totalCents += deal.valueCents;
-      pastDue.weightedCents += weighted;
-      continue;
-    }
-    const bucket = bucketIndex.get(monthKey(deal.expectedCloseDate));
-    if (bucket) {
-      bucket.count += 1;
-      bucket.totalCents += deal.valueCents;
-      bucket.weightedCents += weighted;
-    }
-    // Deals further than 6 months out are intentionally omitted from the chart.
-  }
+  // Weighted forecast by expected close month (pure, unit-tested logic)
+  const forecast = buildForecastBuckets(
+    openDeals.map((deal) => ({
+      valueCents: deal.valueCents,
+      probability: stageById.get(deal.stageId)?.probability ?? 0,
+      expectedCloseDate: deal.expectedCloseDate,
+    })),
+    new Date(),
+  );
 
   return {
     openCount: openDeals.length,
     openTotalCents,
     weightedTotalCents,
-    winRate: closedTotal > 0 ? wonCount / closedTotal : null,
+    winRate: winRate(wonCount, lostCount),
     wonCount,
     lostCount,
     won90Cents: won90._sum.valueCents ?? 0,
     won90Count: won90._count._all,
     pipelineByStage: [...sliceByStage.values()],
-    forecastByMonth: pastDue.count > 0 ? [pastDue, ...buckets] : buckets,
-    unscheduledCount,
-    unscheduledWeightedCents,
+    forecastByMonth: forecast.buckets,
+    unscheduledCount: forecast.unscheduledCount,
+    unscheduledWeightedCents: forecast.unscheduledWeightedCents,
     closingSoon: closingSoonRows.map((row) => ({
       id: row.id,
       title: row.title,

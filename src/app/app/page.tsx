@@ -115,7 +115,7 @@ export default async function DashboardPage() {
             <CardHeader>
               <CardTitle className="text-sm">Weighted forecast by close month</CardTitle>
               <CardDescription>
-                What's realistically landing, based on stage probabilities
+                What&apos;s realistically landing, based on stage probabilities
                 {data.unscheduledCount > 0
                   ? ` · ${data.unscheduledCount} deal${data.unscheduledCount === 1 ? "" : "s"} (${formatCompactMoney(data.unscheduledWeightedCents, currency)} weighted) have no close date`
                   : ""}

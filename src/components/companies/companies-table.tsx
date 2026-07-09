@@ -52,7 +52,7 @@ export function CompaniesTable({
   openNewOnMount: boolean;
   hasAnyCompanies: boolean;
 }) {
-  const [newOpen, setNewOpen] = useState(false);
+  const [newOpen, setNewOpen] = useState(openNewOnMount && canWrite);
   const [editing, setEditing] = useState<EditableCompany | null>(null);
   const [deleting, setDeleting] = useState<CompanyRow | null>(null);
   const [pending, startTransition] = useTransition();
@@ -60,8 +60,7 @@ export function CompaniesTable({
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (openNewOnMount && canWrite) {
-      setNewOpen(true);
+    if (openNewOnMount) {
       const params = new URLSearchParams(searchParams.toString());
       params.delete("new");
       router.replace(`/app/companies${params.size ? `?${params}` : ""}`, { scroll: false });

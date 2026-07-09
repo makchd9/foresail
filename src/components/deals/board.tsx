@@ -90,22 +90,24 @@ export function DealsBoard({
   const searchParams = useSearchParams();
   const [columns, setColumns] = useState<ColumnsMap>(() => buildColumns(stages, deals));
   const [activeDeal, setActiveDeal] = useState<BoardDeal | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(openNewOnMount && canWrite);
   const [editingDeal, setEditingDeal] = useState<EditableDeal | null>(null);
   const [newStageId, setNewStageId] = useState<string | undefined>(undefined);
   const [, startTransition] = useTransition();
   const snapshotRef = useRef<ColumnsMap | null>(null);
   const originRef = useRef<{ stageId: string; index: number } | null>(null);
 
-  // Reconcile with fresh server data after router.refresh().
-  useEffect(() => {
+  // Reconcile with fresh server data after router.refresh() — the documented
+  // "adjust state when props change" pattern, applied during render.
+  const [lastServerData, setLastServerData] = useState<{ stages: BoardStage[]; deals: BoardDeal[] }>({ stages, deals });
+  if (lastServerData.stages !== stages || lastServerData.deals !== deals) {
+    setLastServerData({ stages, deals });
     setColumns(buildColumns(stages, deals));
-  }, [stages, deals]);
+  }
 
-  // ?new=1 opens the create dialog (used by the command palette).
+  // ?new=1 opened the create dialog (command palette); tidy the URL once.
   useEffect(() => {
-    if (openNewOnMount && canWrite) {
-      setDialogOpen(true);
+    if (openNewOnMount) {
       const params = new URLSearchParams(searchParams.toString());
       params.delete("new");
       router.replace(`/app/deals${params.size ? `?${params}` : ""}`, { scroll: false });
