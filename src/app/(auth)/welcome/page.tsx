@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import Link from "next/link";
 
 import { requireUser } from "@/lib/session";
 import { getUserMemberships } from "@/server/workspace";
@@ -14,19 +14,29 @@ export const metadata: Metadata = {
 export default async function WelcomePage() {
   const user = await requireUser();
   const memberships = await getUserMemberships(user.id);
-  if (memberships.length > 0) redirect("/app");
 
   return (
-    <Card>
-      <CardHeader className="text-center">
-        <CardTitle className="text-xl">Create a workspace</CardTitle>
-        <CardDescription>
-          You&apos;re not a member of any workspace right now. Create one to get going.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <CreateWorkspaceForm />
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="text-center">
+          <CardTitle className="text-xl">Create a workspace</CardTitle>
+          <CardDescription>
+            {memberships.length > 0
+              ? "Spin up another workspace with its own pipeline and members."
+              : "You're not a member of any workspace right now. Create one to get going."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CreateWorkspaceForm />
+        </CardContent>
+      </Card>
+      {memberships.length > 0 ? (
+        <p className="text-center text-sm text-muted-foreground">
+          <Link href="/app" className="font-medium text-foreground underline-offset-4 hover:underline">
+            ← Back to the app
+          </Link>
+        </p>
+      ) : null}
+    </div>
   );
 }
