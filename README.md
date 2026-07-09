@@ -4,12 +4,12 @@
 
 **A CRM that stops the pipeline from lying — kanban deals with weighted revenue forecasting.**
 
-[![CI](__GH_REPO__/actions/workflows/ci.yml/badge.svg)](__GH_REPO__/actions/workflows/ci.yml)
+[![CI](https://github.com/makchd9/foresail/actions/workflows/ci.yml/badge.svg)](https://github.com/makchd9/foresail/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-0369a1.svg)](LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Prisma-336791?logo=postgresql&logoColor=white)](https://www.prisma.io)
 
-**Live demo → __LIVE_URL__**
+**Live demo → _deploying — final link lands here shortly_**
 
 *Sign in with* `demo@foresail.app` / `demo1234` *(full edit access, resets nightly)*
 
@@ -56,7 +56,7 @@ Next.js 16 (App Router) · TypeScript strict · PostgreSQL + Prisma 7 · Auth.js
 ## Quick start
 
 ```bash
-git clone __GH_REPO__.git
+git clone https://github.com/makchd9/foresail.git
 cd foresail
 cp .env.example .env        # then set DATABASE_URL + AUTH_SECRET
 npm install

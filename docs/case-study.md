@@ -2,8 +2,8 @@
 
 **A CRM with honest revenue forecasting — built end-to-end for the Digital Heroes full-stack trial.**
 
-- **Live:** __LIVE_URL__ (demo login `demo@foresail.app` / `demo1234`)
-- **Code:** __GH_REPO__
+- **Live:** _deploying — link landing shortly_ (demo login `demo@foresail.app` / `demo1234`)
+- **Code:** https://github.com/makchd9/foresail
 - **Stack:** Next.js 16 · TypeScript strict · PostgreSQL + Prisma · Auth.js · Tailwind + shadcn/ui · Vitest + Playwright · Vercel
 
 ## The problem
