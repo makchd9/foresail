@@ -11,6 +11,7 @@
 import { hashSync } from "bcryptjs";
 import { randomBytes } from "node:crypto";
 
+import { DEFAULT_STAGES } from "../../lib/stages";
 import type { PrismaClient } from "../../generated/prisma/client";
 
 export const DEMO_WORKSPACE_SLUG = "demo";
@@ -38,15 +39,6 @@ const daysAgo = (n: number) => new Date(Date.now() - n * DAY);
 const daysAhead = (n: number) => new Date(Date.now() + n * DAY);
 
 // ---------- Static demo content ----------
-
-export const DEFAULT_STAGES = [
-  { name: "Lead", probability: 10, color: "sky", isWon: false, isLost: false },
-  { name: "Qualified", probability: 25, color: "blue", isWon: false, isLost: false },
-  { name: "Proposal", probability: 50, color: "violet", isWon: false, isLost: false },
-  { name: "Negotiation", probability: 75, color: "amber", isWon: false, isLost: false },
-  { name: "Won", probability: 100, color: "emerald", isWon: true, isLost: false },
-  { name: "Lost", probability: 0, color: "rose", isWon: false, isLost: true },
-] as const;
 
 const PEOPLE = [
   { key: "founder", name: "Prisha Nair", email: "prisha@foresail.app", role: "OWNER" },
