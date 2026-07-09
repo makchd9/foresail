@@ -112,7 +112,7 @@ export default async function DealDetailPage({
                     <li key={note.id} className="rounded-lg border bg-card p-3">
                       <div className="mb-1.5 flex items-center gap-2">
                         <Avatar className="size-5">
-                          <AvatarFallback className="bg-muted text-[9px] font-medium">
+                          <AvatarFallback className="bg-muted text-[9px] font-semibold text-foreground/70">
                             {initials(note.author?.name ?? "?")}
                           </AvatarFallback>
                         </Avatar>

@@ -442,7 +442,6 @@ function BoardColumn({
       className={cn(
         "flex h-full w-[272px] shrink-0 flex-col rounded-xl border bg-muted/40 transition-colors",
         isOver && "border-ring/60 bg-muted/70",
-        stage.isLost && "opacity-80",
       )}
     >
       <header className="flex items-center gap-2 px-3 pt-3 pb-2">

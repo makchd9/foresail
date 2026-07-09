@@ -55,7 +55,7 @@ export function ActivityItem({
   return (
     <li className="flex items-start gap-3 py-2.5">
       <Avatar className="mt-0.5 size-6">
-        <AvatarFallback className="bg-muted text-[10px] font-medium text-muted-foreground">
+        <AvatarFallback className="bg-muted text-[10px] font-semibold text-foreground/70">
           {initials(actorName)}
         </AvatarFallback>
       </Avatar>

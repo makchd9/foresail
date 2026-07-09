@@ -263,7 +263,7 @@ export default async function LandingPage() {
         {/* How the forecast works */}
         <section id="forecast" className="scroll-mt-20 border-t">
           <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-2 lg:items-center">
-            <div>
+            <div className="min-w-0">
               <h2 className="text-3xl font-semibold tracking-tight">
                 The forecast is just multiplication
               </h2>
@@ -289,12 +289,12 @@ export default async function LandingPage() {
                 ))}
               </ol>
             </div>
-            <div className="rounded-xl border bg-card p-6">
+            <div className="min-w-0 rounded-xl border bg-card p-6">
               <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                 Weighted value
               </p>
-              <p className="mt-3 font-mono text-lg sm:text-xl">
-                forecast = Σ ( value × stage&nbsp;probability )
+              <p className="mt-3 font-mono text-base break-words sm:text-xl">
+                forecast = Σ (value × stage probability)
               </p>
               <div className="mt-6 space-y-3 border-t pt-5 text-sm">
                 {[

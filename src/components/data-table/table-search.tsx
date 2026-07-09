@@ -71,7 +71,7 @@ export function TableSearch({ placeholder }: { placeholder: string }) {
           <X className="size-3.5" aria-hidden="true" />
         </button>
       ) : (
-        <kbd className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 rounded border bg-muted px-1 font-mono text-[10px] text-muted-foreground">
+        <kbd className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 rounded border bg-muted px-1 font-mono text-[10px] font-medium text-foreground/70">
           /
         </kbd>
       )}

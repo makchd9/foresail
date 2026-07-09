@@ -33,7 +33,7 @@ function SearchButton() {
     >
       <Search className="size-3.5" aria-hidden="true" />
       <span className="flex-1 text-left">Search…</span>
-      <kbd className="pointer-events-none rounded border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">
+      <kbd className="pointer-events-none rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-foreground/70">
         ⌘K
       </kbd>
     </button>

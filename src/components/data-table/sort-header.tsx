@@ -31,7 +31,6 @@ export function SortHeader({
   return (
     <Link
       href={href}
-      aria-sort={active ? (params.dir === "asc" ? "ascending" : "descending") : undefined}
       className={cn(
         "group inline-flex items-center gap-1 rounded-sm text-xs font-medium transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
         active ? "text-foreground" : "text-muted-foreground",
@@ -39,6 +38,7 @@ export function SortHeader({
       )}
     >
       {label}
+      {active ? <span className="sr-only">, sorted {params.dir === "asc" ? "ascending" : "descending"}</span> : null}
       {active ? (
         params.dir === "asc" ? (
           <ArrowUp className="size-3" aria-hidden="true" />
