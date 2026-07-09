@@ -405,3 +405,116 @@ export async function loadSampleDataAction(): Promise<ActionResult> {
   revalidatePath("/app/companies");
   return ok(null);
 }
+
+// ---------- Bulk actions (table view) ----------
+
+const BULK_LIMIT = 500;
+
+export type BulkTarget =
+  | { mode: "ids"; ids: string[] }
+  | { mode: "filter"; q: string; stage: string | null; owner: string | null };
+
+async function resolveBulkDealIds(
+  workspaceId: string,
+  target: BulkTarget,
+): Promise<{ ids: string[] } | { error: string }> {
+  const { dealsWhere } = await import("@/server/queries/deals-table");
+  if (target.mode === "ids") {
+    if (target.ids.length === 0) return { error: "Nothing selected." };
+    if (target.ids.length > BULK_LIMIT) return { error: `Bulk actions are capped at ${BULK_LIMIT} deals.` };
+    const rows = await db.deal.findMany({
+      where: { workspaceId, deletedAt: null, id: { in: target.ids } },
+      select: { id: true },
+    });
+    return { ids: rows.map((r) => r.id) };
+  }
+  const rows = await db.deal.findMany({
+    where: dealsWhere(workspaceId, { q: target.q, stage: target.stage, owner: target.owner }),
+    select: { id: true },
+    take: BULK_LIMIT + 1,
+  });
+  if (rows.length > BULK_LIMIT) return { error: `Bulk actions are capped at ${BULK_LIMIT} deals — narrow the filter.` };
+  return { ids: rows.map((r) => r.id) };
+}
+
+export async function bulkDeleteDealsAction(target: BulkTarget): Promise<ActionResult<{ count: number }>> {
+  const context = await getActionContext("MEMBER");
+  if (!context.ok) return fail(context.error);
+
+  const resolved = await resolveBulkDealIds(context.workspace.id, target);
+  if ("error" in resolved) return fail(resolved.error);
+  if (resolved.ids.length === 0) return fail("Nothing to delete.");
+
+  await db.$transaction(async (tx) => {
+    await tx.deal.updateMany({
+      where: { id: { in: resolved.ids }, workspaceId: context.workspace.id },
+      data: { deletedAt: new Date() },
+    });
+    await logActivity(
+      {
+        workspaceId: context.workspace.id,
+        actorId: context.user.id,
+        action: "deal.deleted",
+        entityType: "deal",
+        entityLabel: `${resolved.ids.length} deals (bulk)`,
+        meta: { count: resolved.ids.length },
+      },
+      tx,
+    );
+  });
+
+  revalidateDealViews();
+  return ok({ count: resolved.ids.length });
+}
+
+export async function bulkMoveDealsAction(
+  target: BulkTarget,
+  stageId: string,
+): Promise<ActionResult<{ count: number }>> {
+  const context = await getActionContext("MEMBER");
+  if (!context.ok) return fail(context.error);
+
+  const stage = await db.stage.findFirst({ where: { id: stageId, workspaceId: context.workspace.id } });
+  if (!stage) return fail("That stage doesn't exist in this workspace.");
+
+  const resolved = await resolveBulkDealIds(context.workspace.id, target);
+  if ("error" in resolved) return fail(resolved.error);
+  if (resolved.ids.length === 0) return fail("Nothing to move.");
+
+  const nowClosed = stage.isWon || stage.isLost;
+  const last = await db.deal.findFirst({
+    where: { workspaceId: context.workspace.id, stageId, deletedAt: null },
+    orderBy: { position: "desc" },
+    select: { position: true },
+  });
+  const basePosition = (last?.position ?? 0) + 1024;
+
+  await db.$transaction(async (tx) => {
+    let offset = 0;
+    for (const id of resolved.ids) {
+      await tx.deal.update({
+        where: { id },
+        data: {
+          stageId,
+          position: basePosition + offset,
+          ...(nowClosed ? { closedAt: new Date() } : { closedAt: null, lostReason: null }),
+        },
+      });
+      offset += 1024;
+    }
+    await logActivity(
+      {
+        workspaceId: context.workspace.id,
+        actorId: context.user.id,
+        action: stage.isWon ? "deal.won" : stage.isLost ? "deal.lost" : "deal.stage_changed",
+        entityType: "deal",
+        entityLabel: `${resolved.ids.length} deals (bulk)`,
+        meta: { count: resolved.ids.length, to: stage.name },
+      },
+      tx,
+    );
+  });
+
+  revalidateDealViews();
+  return ok({ count: resolved.ids.length });
+}
