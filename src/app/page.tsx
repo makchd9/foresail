@@ -228,6 +228,8 @@ export default async function LandingPage() {
                   width={1440}
                   height={900}
                   priority
+                  quality={80}
+                  sizes="(max-width: 1064px) 94vw, 1024px"
                   className="rounded-lg border"
                 />
               </div>
