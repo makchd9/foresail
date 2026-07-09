@@ -1,0 +1,250 @@
+// Foresail data model
+// Multi-tenant: every business entity hangs off a Workspace.
+// Money is stored as integer cents. Soft deletes via deletedAt where recovery matters.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- Auth & identity ----------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  passwordHash  String
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  memberships         Membership[]
+  ownedDeals          Deal[]               @relation("DealOwner")
+  notes               Note[]
+  activities          ActivityLog[]
+  verificationTokens  VerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+  createdInvites      WorkspaceInvite[]
+}
+
+/// Email verification links. Token is stored as a SHA-256 hash, single-use via delete-on-verify.
+model VerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Password reset links. Hashed at rest, 30 min TTL, invalidated on first use.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Fixed-window rate limiting that survives serverless cold starts.
+model RateLimit {
+  key      String   @id
+  count    Int      @default(0)
+  resetsAt DateTime
+}
+
+// ---------- Tenancy ----------
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  currency  String   @default("USD")
+  isDemo    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  stages      Stage[]
+  companies   Company[]
+  contacts    Contact[]
+  deals       Deal[]
+  activities  ActivityLog[]
+  invites     WorkspaceInvite[]
+}
+
+model Membership {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        Role     @default(MEMBER)
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+}
+
+/// Shareable invite links (no email delivery required). Hashed at rest, revocable, expiring.
+model WorkspaceInvite {
+  id          String    @id @default(cuid())
+  workspaceId String
+  role        Role      @default(MEMBER)
+  tokenHash   String    @unique
+  createdById String?
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+}
+
+// ---------- Pipeline ----------
+
+/// Ordered pipeline step. `probability` drives the weighted forecast.
+model Stage {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  order       Int
+  probability Int // 0-100
+  isWon       Boolean  @default(false)
+  isLost      Boolean  @default(false)
+  color       String   @default("zinc")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  deals     Deal[]
+
+  @@index([workspaceId, order])
+}
+
+model Company {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  domain      String?
+  industry    String?
+  size        String?
+  location    String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contacts  Contact[]
+  deals     Deal[]
+
+  @@index([workspaceId, name])
+}
+
+model Contact {
+  id          String   @id @default(cuid())
+  workspaceId String
+  companyId   String?
+  name        String
+  email       String?
+  phone       String?
+  title       String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  company   Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  deals     Deal[]
+
+  @@index([workspaceId, name])
+  @@index([companyId])
+}
+
+model Deal {
+  id                String    @id @default(cuid())
+  workspaceId       String
+  title             String
+  valueCents        Int       @default(0)
+  stageId           String
+  companyId         String?
+  contactId         String?
+  ownerId           String?
+  expectedCloseDate DateTime?
+  position          Float     @default(0)
+  closedAt          DateTime?
+  lostReason        String?
+  deletedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  stage     Stage     @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  company   Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contact   Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  owner     User?     @relation("DealOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  notesList Note[]
+
+  @@index([workspaceId, deletedAt, stageId, position])
+  @@index([workspaceId, deletedAt, updatedAt(sort: Desc), id])
+  @@index([workspaceId, deletedAt, expectedCloseDate])
+  @@index([ownerId])
+  @@index([companyId])
+  @@index([contactId])
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  dealId    String
+  authorId  String?
+  body      String
+  createdAt DateTime @default(now())
+
+  deal   Deal  @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([dealId, createdAt(sort: Desc)])
+}
+
+// ---------- Audit ----------
+
+/// Immutable audit trail. entityLabel is denormalized so history survives deletes.
+model ActivityLog {
+  id          String   @id @default(cuid())
+  workspaceId String
+  actorId     String?
+  action      String
+  entityType  String
+  entityId    String?
+  entityLabel String
+  meta        Json?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor     User?     @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt(sort: Desc), id])
+  @@index([workspaceId, entityType, createdAt(sort: Desc)])
+}
